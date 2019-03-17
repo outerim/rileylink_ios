@@ -543,6 +543,7 @@
 		C1F6EB891F89C3E200CFE393 /* FourByteSixByteEncoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F6EB881F89C3E200CFE393 /* FourByteSixByteEncoding.swift */; };
 		C1F6EB8B1F89C41200CFE393 /* MinimedPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F6EB8A1F89C41200CFE393 /* MinimedPacket.swift */; };
 		C1F6EB8D1F89C45500CFE393 /* MinimedPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F6EB8C1F89C45500CFE393 /* MinimedPacketTests.swift */; };
+		C1F8B1DA22380B5600DD66CF /* PodDoseProgressEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F8B1D922380B5600DD66CF /* PodDoseProgressEstimator.swift */; };
 		C1FB4275216E83D200FAB378 /* Locked.swift in Sources */ = {isa = PBXBuildFile; fileRef = 435D26B720DC83E400891C17 /* Locked.swift */; };
 		C1FC49EC2135CB2D007D0788 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C1FC49EB2135CB2D007D0788 /* LaunchScreen.storyboard */; };
 		C1FC49EE2135DD56007D0788 /* CommandResponseViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FC49ED2135DD56007D0788 /* CommandResponseViewController.swift */; };
@@ -1437,6 +1438,7 @@
 		C1F6EB881F89C3E200CFE393 /* FourByteSixByteEncoding.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FourByteSixByteEncoding.swift; sourceTree = "<group>"; };
 		C1F6EB8A1F89C41200CFE393 /* MinimedPacket.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MinimedPacket.swift; sourceTree = "<group>"; };
 		C1F6EB8C1F89C45500CFE393 /* MinimedPacketTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MinimedPacketTests.swift; sourceTree = "<group>"; };
+		C1F8B1D922380B5600DD66CF /* PodDoseProgressEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodDoseProgressEstimator.swift; sourceTree = "<group>"; };
 		C1FB4272216E5DFD00FAB378 /* GetPumpFirmwareVersionMessageBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetPumpFirmwareVersionMessageBody.swift; sourceTree = "<group>"; };
 		C1FC49EB2135CB2D007D0788 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		C1FC49ED2135DD56007D0788 /* CommandResponseViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandResponseViewController.swift; sourceTree = "<group>"; };
@@ -2533,6 +2535,7 @@
 				C13BD63D21402A88006D7F19 /* PodInsulinMeasurements.swift */,
 				C1FFAF9D213323E700C50C1D /* PodState.swift */,
 				C14B42F921FF78840073A836 /* MessageLog.swift */,
+				C1F8B1D922380B5600DD66CF /* PodDoseProgressEstimator.swift */,
 			);
 			path = PumpManager;
 			sourceTree = "<group>";
@@ -3866,6 +3869,7 @@
 				C11166AE2180D834000EEAAB /* AlertSlot.swift in Sources */,
 				C1FFAFB9213323E900C50C1D /* PodCommsSession.swift in Sources */,
 				C1FFAFC8213323E900C50C1D /* BolusExtraCommand.swift in Sources */,
+				C1F8B1DA22380B5600DD66CF /* PodDoseProgressEstimator.swift in Sources */,
 				C1FFAFC7213323E900C50C1D /* PlaceholderMessageBlock.swift in Sources */,
 				C17C5C0F21447383002A06F8 /* NumberFormatter.swift in Sources */,
 				C127D927215C00420031799D /* PodCommsSession+LoopKit.swift in Sources */,

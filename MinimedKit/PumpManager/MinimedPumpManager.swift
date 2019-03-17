@@ -16,6 +16,7 @@ public protocol MinimedPumpManagerStateObserver: class {
 }
 
 public class MinimedPumpManager: RileyLinkPumpManager, PumpManager {
+
     public func roundToSupportedBasalRate(unitsPerHour: Double) -> Double {
         return supportedBasalRates.filter({$0 <= unitsPerHour}).max() ?? 0
     }
@@ -44,6 +45,11 @@ public class MinimedPumpManager: RileyLinkPumpManager, PumpManager {
     
     public func roundToDeliveryIncrement(units: Double) -> Double {
         return round(units * Double(state.pumpModel.pulsesPerUnit)) / Double(state.pumpModel.pulsesPerUnit)
+    }
+
+    public func progressEstimatorForDose(_ dose: DoseEntry) -> DoseProgressEstimator? {
+        // TODO: Implement delivery estimator
+        return nil
     }
     
     /*
@@ -681,6 +687,17 @@ public class MinimedPumpManager: RileyLinkPumpManager, PumpManager {
             }
         }
     }
+
+    public func cancelBolus(completion: @escaping (PumpManagerResult<DoseEntry?>) -> Void) {
+        setSuspendResumeState(state: .suspend) { (error) in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(nil))
+            }
+        }
+    }
+
 
     public func enactTempBasal(unitsPerHour: Double, for duration: TimeInterval, completion: @escaping (PumpManagerResult<DoseEntry>) -> Void) {
         pumpOps.runSession(withName: "Set Temp Basal", using: rileyLinkDeviceProvider.firstConnectedDevice) { (session) in

@@ -22,8 +22,6 @@ class OmnipodSettingsViewController: RileyLinkSettingsViewController {
     
     var pumpManagerStatus: PumpManagerStatus?
     
-    private var bolusProgressTimer: Timer?
-    
     init(pumpManager: OmnipodPumpManager) {
         self.pumpManager = pumpManager
         podState = pumpManager.state.podState
@@ -168,7 +166,6 @@ class OmnipodSettingsViewController: RileyLinkSettingsViewController {
     }
     
     fileprivate enum StatusRow: Int, CaseIterable {
-        case bolus = 0
         case basal
         case alarms
         case reservoirLevel
@@ -327,15 +324,6 @@ class OmnipodSettingsViewController: RileyLinkSettingsViewController {
                 let cell = tableView.dequeueReusableCell(withIdentifier: SettingsTableViewCell.className, for: indexPath)
                 
                 switch statusRow {
-                case .bolus:
-                    cell.textLabel?.text = LocalizedString("Bolus Delivery", comment: "The title of the cell showing pod bolus status")
-                    cell.setDetailBolus(suspended: podState.suspended, dose: podState.unfinalizedBolus)
-                    // TODO: This timer is in the wrong context; should be part of a custom bolus progress cell
-//                    if bolusProgressTimer == nil {
-//                        bolusProgressTimer = Timer.scheduledTimer(withTimeInterval: .seconds(2), repeats: true) { [weak self] (_) in
-//                            self?.tableView.reloadRows(at: [indexPath], with: .none)
-//                        }
-//                    }
                 case .basal:
                     cell.textLabel?.text = LocalizedString("Basal Delivery", comment: "The title of the cell showing pod basal status")
                     cell.setDetailBasal(suspended: podState.suspended, dose: podState.unfinalizedTempBasal)
@@ -548,7 +536,7 @@ extension OmnipodSettingsViewController: PodStateObserver {
                 return
             }
 
-            let reloadRows: [StatusRow] = [.bolus, .basal, .reservoirLevel, .deliveredInsulin]
+            let reloadRows: [StatusRow] = [.basal, .reservoirLevel, .deliveredInsulin]
             self.tableView.reloadRows(at: reloadRows.map({ IndexPath(row: $0.rawValue, section: statusIdx) }), with: .none)
 
             if oldState?.activeAlerts != state?.activeAlerts,
@@ -703,28 +691,7 @@ private extension UITableViewCell {
             detailTextLabel?.text = LocalizedString("Schedule", comment: "The detail text of the basal row when pod is running scheduled basal")
         }
     }
-    
-    func setDetailBolus(suspended: Bool, dose: UnfinalizedDose?) {
-        guard let dose = dose, !suspended else {
-            detailTextLabel?.text = LocalizedString("None", comment: "The detail text for bolus delivery when no bolus is being delivered")
-            return
-        }
         
-        let progress = dose.progress
-        let delivered = OmnipodPumpManager.roundToDeliveryIncrement(units: progress * dose.units)
-        if let units = self.insulinFormatter.string(from: dose.units), let deliveredUnits = self.insulinFormatter.string(from: delivered) {
-            if progress >= 1 {
-                self.detailTextLabel?.text = String(format: LocalizedString("%@ U (Finished)", comment: "Format string for bolus progress when finished. (1: The localized amount)"), units)
-            } else {
-                let progressFormatted = percentFormatter.string(from: progress * 100.0) ?? ""
-                let progressStr = String(format: LocalizedString("%@%%", comment: "Format string for bolus percent progress. (1: Percent progress)"), progressFormatted)
-                self.detailTextLabel?.text = String(format: LocalizedString("%@ U of %@ U (%@)", comment: "Format string for bolus progress. (1: The delivered amount) (2: The programmed amount) (3: the percent progress)"), deliveredUnits, units, progressStr)
-            }
-        }
-
-
-    }
-    
     func setDeliveredInsulinDetail(_ measurements: PodInsulinMeasurements?) {
         guard let measurements = measurements else {
             detailTextLabel?.text = LocalizedString("Unknown", comment: "The detail text for delivered insulin when no measurement is available")

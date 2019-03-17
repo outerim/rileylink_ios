@@ -48,7 +48,7 @@ public struct UnfinalizedDose: RawRepresentable, Equatable, CustomStringConverti
     private let dateFormatter = ISO8601DateFormatter()
     
     fileprivate var uniqueKey: Data {
-        return "\(doseType) \(scheduledUnits ?? units) \(dateFormatter.string(from: startTime)) \(duration)".data(using: .utf8)!
+        return "\(doseType) \(scheduledUnits ?? units) \(dateFormatter.string(from: startTime))".data(using: .utf8)!
     }
     
     let doseType: DoseType
@@ -185,13 +185,18 @@ private extension TimeInterval {
 extension NewPumpEvent {
     init(_ dose: UnfinalizedDose) {
         let title = String(describing: dose)
-        let entry: DoseEntry
+        let entry = DoseEntry(dose)
+        self.init(date: dose.startTime, dose: entry, isMutable: false, raw: dose.uniqueKey, title: title)
+    }
+}
+
+extension DoseEntry {
+    init (_ dose: UnfinalizedDose) {
         switch dose.doseType {
         case .bolus:
-            entry = DoseEntry(type: .bolus, startDate: dose.startTime, value: dose.units, unit: .units)
+            self = DoseEntry(type: .bolus, startDate: dose.startTime, endDate: dose.finishTime, value: dose.units, unit: .units)
         case .tempBasal:
-            entry = DoseEntry(type: .tempBasal, startDate: dose.startTime, endDate: dose.finishTime, value: dose.rate, unit: .unitsPerHour)
+            self = DoseEntry(type: .tempBasal, startDate: dose.startTime, endDate: dose.finishTime, value: dose.rate, unit: .unitsPerHour)
         }
-        self.init(date: dose.startTime, dose: entry, isMutable: false, raw: dose.uniqueKey, title: title)
     }
 }

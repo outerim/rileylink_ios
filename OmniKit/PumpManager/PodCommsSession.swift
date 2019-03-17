@@ -419,13 +419,15 @@ public class PodCommsSession {
         }
     }
     
-    public func cancelDelivery(deliveryType: CancelDeliveryCommand.DeliveryType, beepType: BeepType) throws -> StatusResponse {
+    public func cancelDelivery(deliveryType: CancelDeliveryCommand.DeliveryType, beepType: BeepType) throws -> (StatusResponse, UnfinalizedDose?) {
         
         let cancelDelivery = CancelDeliveryCommand(nonce: podState.currentNonce, deliveryType: deliveryType, beepType: beepType)
         
         let status: StatusResponse = try send([cancelDelivery])
         
         let now = Date()
+
+        var canceledBolus: UnfinalizedDose? = nil
         
         if let unfinalizedTempBasal = podState.unfinalizedTempBasal,
             deliveryType.contains(.tempBasal),
@@ -440,12 +442,13 @@ public class PodCommsSession {
             unfinalizedBolus.finishTime.compare(now) == .orderedDescending
         {
             podState.unfinalizedBolus?.cancel(at: now, withRemaining: status.insulinNotDelivered)
+            canceledBolus = podState.unfinalizedBolus
             log.info("Interrupted bolus: %@", String(describing: unfinalizedBolus))
         }
         
         podState.updateFromStatusResponse(status)
 
-        return status
+        return (status, canceledBolus)
     }
 
     public func testingCommands() throws {

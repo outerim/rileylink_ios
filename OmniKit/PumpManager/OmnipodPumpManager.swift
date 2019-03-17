@@ -77,8 +77,8 @@ extension OmnipodPumpManagerError: LocalizedError {
     }
 }
 
-
 public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
+
     public func roundToSupportedBasalRate(unitsPerHour: Double) -> Double {
         return supportedBasalRates.filter({$0 <= unitsPerHour}).max() ?? 0
     }
@@ -189,6 +189,9 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
         return OmnipodPumpManager.roundToDeliveryIncrement(units: units)
     }
 
+    public func progressEstimatorForDose(_ dose: DoseEntry) -> DoseProgressEstimator? {
+        return PodDoseProgressEstimator(dose: dose)
+    }
     
     public init(state: OmnipodPumpManagerState, rileyLinkDeviceProvider: RileyLinkDeviceProvider, rileyLinkConnectionManager: RileyLinkConnectionManager? = nil) {
         self.state = state
@@ -296,7 +299,7 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
         
         if let bolus = podState.unfinalizedBolus, !bolus.finished {
             // TODO: return progress
-            return bolusStateTransitioning ? .canceling : .inProgress(Float(bolus.progress))
+            return bolusStateTransitioning ? .canceling : .inProgress(DoseEntry(bolus))
         } else {
             return bolusStateTransitioning ? .initiating : .none
         }
@@ -758,14 +761,57 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
                 willRequest(dose)
                 
                 let result = session.bolus(units: enactUnits)
+
+                let acknowledgedDate = Date()
+                let acknowledgedDose = DoseEntry(type: .bolus, startDate: acknowledgedDate, endDate: acknowledgedDate.addingTimeInterval(deliveryTime), value: enactUnits, unit: .units)
                 
                 switch result {
                 case .success:
-                    completion(.success(dose))
+                    completion(.success(acknowledgedDose))
                 case .certainFailure(let error):
                     completion(.failure(SetBolusError.certain(error)))
                 case .uncertainFailure(let error):
                     completion(.failure(SetBolusError.uncertain(error)))
+                }
+            }
+        }
+    }
+
+    public func cancelBolus(completion: @escaping (PumpManagerResult<DoseEntry?>) -> Void) {
+        queue.async {
+            guard self.hasActivePod else {
+                completion(.failure(OmnipodPumpManagerError.noPodPaired))
+                return
+            }
+
+            let rileyLinkSelector = self.rileyLinkDeviceProvider.firstConnectedDevice
+            self.podComms.runSession(withName: "Cancel Bolus", using: rileyLinkSelector) { (result) in
+
+                let session: PodCommsSession
+                switch result {
+                case .success(let s):
+                    session = s
+                case .failure(let error):
+                    completion(.failure(error))
+                    return
+                }
+
+                defer { self.basalDeliveryStateTransitioning = false }
+                self.basalDeliveryStateTransitioning = true
+
+                do {
+                    let (_, canceledBolus) = try session.cancelDelivery(deliveryType: .bolus, beepType: .noBeep)
+
+                    let canceledDoseEntry: DoseEntry? = canceledBolus != nil ? DoseEntry(canceledBolus!) : nil
+
+                    completion(.success(canceledDoseEntry))
+
+                    session.dosesForStorage() { (doses) -> Bool in
+                        return self.store(doses: doses)
+                    }
+
+                } catch (let error) {
+                    completion(.failure(error))
                 }
             }
         }
@@ -804,7 +850,7 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
                         throw PodCommsError.unfinalizedBolus
                     }
                     
-                    let status = try session.cancelDelivery(deliveryType: .tempBasal, beepType: .noBeep)
+                    let (status, _) = try session.cancelDelivery(deliveryType: .tempBasal, beepType: .noBeep)
 
                     guard !status.deliveryStatus.bolusing else {
                         throw PodCommsError.unfinalizedBolus
