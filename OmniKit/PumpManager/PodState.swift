@@ -130,22 +130,14 @@ public struct PodState: RawRepresentable, Equatable, CustomDebugStringConvertibl
     public mutating func registerConfiguredAlert(slot: AlertSlot, alert: PodAlert) {
         configuredAlerts[slot] = alert
     }
-    
-    private mutating func updateDeliveryStatus(deliveryStatus: StatusResponse.DeliveryStatus) {
+
+    public mutating func finalizeFinishedDoses() {
         let now = Date()
-        
+
         if let bolus = unfinalizedBolus {
             if bolus.finishTime <= now {
                 finalizedDoses.append(bolus)
                 unfinalizedBolus = nil
-            } else if bolus.scheduledCertainty == .uncertain {
-                if deliveryStatus.bolusing {
-                    // Bolus did schedule
-                    unfinalizedBolus?.scheduledCertainty = .certain
-                } else {
-                    // Bolus didn't happen
-                    unfinalizedBolus = nil
-                }
             }
         }
 
@@ -153,14 +145,32 @@ public struct PodState: RawRepresentable, Equatable, CustomDebugStringConvertibl
             if tempBasal.finishTime <= now {
                 finalizedDoses.append(tempBasal)
                 unfinalizedTempBasal = nil
-            } else if tempBasal.scheduledCertainty == .uncertain {
-                if deliveryStatus.tempBasalRunning {
-                    // Temp basal did schedule
-                    unfinalizedTempBasal?.scheduledCertainty = .certain
-                } else {
-                    // Temp basal didn't happen
-                    unfinalizedTempBasal = nil
-                }
+            }
+        }
+    }
+    
+    private mutating func updateDeliveryStatus(deliveryStatus: StatusResponse.DeliveryStatus) {
+        let now = Date()
+
+        finalizeFinishedDoses()
+        
+        if let bolus = unfinalizedBolus, bolus.finishTime > now, bolus.scheduledCertainty == .uncertain {
+            if deliveryStatus.bolusing {
+                // Bolus did schedule
+                unfinalizedBolus?.scheduledCertainty = .certain
+            } else {
+                // Bolus didn't happen
+                unfinalizedBolus = nil
+            }
+        }
+
+        if let tempBasal = unfinalizedTempBasal, tempBasal.finishTime > now, tempBasal.scheduledCertainty == .uncertain {
+            if deliveryStatus.tempBasalRunning {
+                // Temp basal did schedule
+                unfinalizedTempBasal?.scheduledCertainty = .certain
+            } else {
+                // Temp basal didn't happen
+                unfinalizedTempBasal = nil
             }
         }
         

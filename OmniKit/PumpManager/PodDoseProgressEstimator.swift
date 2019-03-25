@@ -10,23 +10,60 @@ import Foundation
 import LoopKit
 
 class PodDoseProgressEstimator: DoseProgressEstimator {
-    weak var delegate: DoseProgressEstimatorDelegate?
 
     public let dose: DoseEntry
 
+    private var observers = WeakSet<DoseProgressObserver>()
+
+    private var lock = os_unfair_lock()
+
     private var timer: Timer?
 
-    var currentEstimate: DoseProgressEstimate {
+    var progress: DoseProgress {
         let elapsed = -dose.startDate.timeIntervalSinceNow
         let duration = dose.endDate.timeIntervalSince(dose.startDate)
-        let percentProgress = min(elapsed / duration, 1)
-        let delivered = OmnipodPumpManager.roundToDeliveryIncrement(units: percentProgress * dose.units)
-        return DoseProgressEstimate(percentProgress: percentProgress, deliveredUnits: delivered)
+        let percentComplete = min(elapsed / duration, 1)
+        let delivered = OmnipodPumpManager.roundToDeliveryIncrement(units: percentComplete * dose.units)
+        return DoseProgress(deliveredUnits: delivered, percentComplete: percentComplete)
     }
 
     init(dose: DoseEntry) {
         self.dose = dose
     }
+
+    func addObserver(_ observer: DoseProgressObserver) {
+        os_unfair_lock_lock(&lock)
+        defer {
+            os_unfair_lock_unlock(&lock)
+        }
+        let firstObserver = observers.isEmpty
+        observers.insert(observer)
+        if firstObserver {
+            start(on: RunLoop.main)
+        }
+    }
+
+    func removeObserver(_ observer: DoseProgressObserver) {
+        os_unfair_lock_lock(&lock)
+        defer {
+            os_unfair_lock_unlock(&lock)
+        }
+        observers.remove(observer)
+        if observers.isEmpty {
+            stop()
+        }
+    }
+
+    private func notify() {
+        os_unfair_lock_lock(&lock)
+        let observersCopy = observers
+        os_unfair_lock_unlock(&lock)
+
+        for observer in observersCopy {
+            observer.doseProgressEstimatorHasNewEstimate(self)
+        }
+    }
+
 
     func start(on runLoop: RunLoop) {
         let timeSinceStart = dose.startDate.timeIntervalSinceNow
@@ -42,7 +79,7 @@ class PodDoseProgressEstimator: DoseProgressEstimator {
         let delayUntilNextPulse = timeBetweenPulses - timeSinceStart.remainder(dividingBy: timeBetweenPulses)
         let timer = Timer(fire: Date() + delayUntilNextPulse, interval: timeBetweenPulses, repeats: true) { [weak self] _  in
             if let self = self {
-                self.delegate?.doseProgressEstimatorHasNewEstimate(self)
+                self.notify()
             }
         }
         runLoop.add(timer, forMode: .default)

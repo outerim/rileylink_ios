@@ -136,6 +136,8 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
         }
     }
 
+    public var bolusProgressEstimator: DoseProgressEstimator?
+
     
     // MARK: - PodStateObserver
     private var podStateObservers = WeakSet<PodStateObserver>()
@@ -756,7 +758,8 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
                 self.bolusStateTransitioning = true
                 
                 let date = Date()
-                let endDate = date.addingTimeInterval(enactUnits / Pod.bolusDeliveryRate)
+                let deliveryTime = enactUnits / Pod.bolusDeliveryRate
+                let endDate = date.addingTimeInterval(deliveryTime)
                 let dose = DoseEntry(type: .bolus, startDate: date, endDate: endDate, value: enactUnits, unit: .units)
                 willRequest(dose)
                 
@@ -764,6 +767,12 @@ public class OmnipodPumpManager: RileyLinkPumpManager, PumpManager {
 
                 let acknowledgedDate = Date()
                 let acknowledgedDose = DoseEntry(type: .bolus, startDate: acknowledgedDate, endDate: acknowledgedDate.addingTimeInterval(deliveryTime), value: enactUnits, unit: .units)
+
+                if let bolus = self.state.podState?.unfinalizedBolus {
+                    let estimator = PodDoseProgressEstimator(dose: DoseEntry(bolus))
+                    estimator.addObserver(self)
+                    self.bolusProgressEstimator = estimator
+                }
                 
                 switch result {
                 case .success:
@@ -1028,6 +1037,18 @@ extension OmnipodPumpManager: MessageLogger {
         state.messageLog.record(MessageLogEntry(messageDirection: .receive, timestamp: Date(), data: message))
     }
 }
+
+extension OmnipodPumpManager: DoseProgressObserver {
+    public func doseProgressEstimatorHasNewEstimate(_ doseProgressEstimator: DoseProgressEstimator) {
+        if doseProgressEstimator === self.bolusProgressEstimator, doseProgressEstimator.progress.isComplete {
+            queue.async {
+                self.state.podState?.finalizeFinishedDoses()
+                self.bolusProgressEstimator = nil
+            }
+        }
+    }
+}
+
 
 extension OmnipodPumpManager: PodCommsDelegate {
     
